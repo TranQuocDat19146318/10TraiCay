@@ -1,0 +1,117 @@
+import glob
+import cv2
+import numpy as np
+
+x_train = []
+x_test = []
+y_train = []
+y_test = []
+
+for train in glob.glob("/content/drive/MyDrive/NhanDangKhuonMat/Train/*.bmp"):
+  a = cv2.imread(train)
+  a = cv2.resize(a,(300,200))
+  x_train.append(a)
+  name0 = 'Dat'
+  name1 = 'Hue'
+  if name0 in train:
+    y_train.append([0])
+  elif name1 in train:
+    y_train.append([1])
+x_train = np.array(x_train)
+y_train = np.array(y_train)
+
+for test in glob.glob("/content/drive/MyDrive/NhanDangKhuonMat/test/*.bmp"):
+  b = cv2.imread(test)
+  b = cv2.resize(b,(300,200))
+  x_test.append(b)
+  name0 = 'Dat'
+  name1 = 'Hue'
+  if name0 in train:
+    y_test.append([0])
+  elif name1 in train:
+    y_test.append([1])
+x_test = np.array(x_test)
+y_test = np.array(y_test)
+from keras.utils.np_utils import to_categorical
+
+x_train = x_train.reshape(120, 180000)
+x_test = x_test.reshape(5, 180000)
+# Chuyen don vi mau thanh so thuc
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+
+# Chuyen anh trang den
+x_train /= 255
+x_test /= 255
+
+# ...to_categorical(y_train, 1) với 1: số phần tử output
+y_train = to_categorical(y_train, 2)
+y_test = to_categorical(y_test, 2)
+from tensorflow.keras.optimizers import RMSprop
+from keras.layers import Dense, Activation, BatchNormalization, Dropout
+from keras.models import Sequential
+model = Sequential()
+model.add(Dense(512, kernel_initializer='normal', activation='relu', input_shape=(180000,)))
+model.add(Dense(512, activation='relu'))
+# model.add(Dropout(0.2))
+# model.add(Dense(512, activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(2, activation='softmax')) 
+model.summary()
+model.compile(loss='categorical_crossentropy', optimizer=RMSprop(), metrics=['accuracy'])
+history = model.fit(x_train, y_train, batch_size=32, epochs=10, verbose=1, validation_data=(x_test, y_test))  
+model.save('Dat_ANN.h5')
+
+import cv2
+import matplotlib.pyplot as plt
+
+img = cv2.imread(r'/content/Dat_000.bmp')
+plt.imshow(img)
+
+img_re = cv2.resize(img, (300, 200))
+plt.imshow(img_re)
+print(img_re.shape)
+
+x_test_c = img_re.reshape(1, 180000) 
+x_test_c = x_test_c.astype('float32')
+x_test_c /= 255
+plt.imshow(x_test_c)
+
+y_pred = model.predict(x_test_c)
+print(y_pred)
+
+y_pred = model.predict(x_test)
+print(y_pred)
+
+score = model.evaluate(x_test, y_pred, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
+
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.xlabel('epoch')
+plt.legend(['Train', 'test'], loc='upper left')
+plt.show()
+
+from keras.preprocessing.image import load_img
+from keras.preprocessing.image import img_to_array
+from keras.models import load_model
+
+img = load_img('/content/Ban Hue.bmp', target_size=(300, 200))
+img = img_to_array(img)
+img = img.reshape(1, 180000)
+img = img.astype('float32')
+img = img / 255.0
+
+
+# load model
+model_final = load_model('Dat_ANN.h5')
+# predict the class
+result = model.predict(img)
+print('Giá trị dự đoán:', np.argmax(result))
+if np.argmax(result) == 0:
+   print("Chính là Đạt đấy")
+elif np.argmax(result) == 1:
+  print("Không phải Đạt đâu")
+plt.show()
